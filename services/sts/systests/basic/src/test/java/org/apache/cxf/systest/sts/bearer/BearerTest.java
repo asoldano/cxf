@@ -21,22 +21,21 @@ package org.apache.cxf.systest.sts.bearer;
 import java.net.URL;
 
 import javax.xml.namespace.QName;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Service;
 
+<<<<<<< HEAD
 import org.w3c.dom.Element;
 
+=======
+>>>>>>> a797797... Fixing tests following WSS4J upgrades + adding some SAML Subject Confirmation Method tests
 import org.apache.cxf.Bus;
 import org.apache.cxf.bus.spring.SpringBusFactory;
-import org.apache.cxf.endpoint.Client;
-import org.apache.cxf.endpoint.Endpoint;
-import org.apache.cxf.frontend.ClientProxy;
 import org.apache.cxf.systest.sts.common.SecurityTestUtil;
 import org.apache.cxf.systest.sts.common.TokenTestUtils;
 import org.apache.cxf.systest.sts.deployment.STSServer;
 import org.apache.cxf.testutil.common.AbstractBusClientServerTestBase;
+<<<<<<< HEAD
 import org.apache.cxf.ws.security.SecurityConstants;
 import org.apache.cxf.ws.security.tokenstore.MemoryTokenStore;
 import org.apache.cxf.ws.security.tokenstore.SecurityToken;
@@ -45,6 +44,8 @@ import org.apache.ws.security.WSConstants;
 import org.apache.ws.security.saml.ext.AssertionWrapper;
 import org.apache.ws.security.saml.ext.SAMLParms;
 
+=======
+>>>>>>> a797797... Fixing tests following WSS4J upgrades + adding some SAML Subject Confirmation Method tests
 import org.example.contract.doubleit.DoubleItPortType;
 import org.junit.BeforeClass;
 
@@ -116,6 +117,7 @@ public class BearerTest extends AbstractBusClientServerTestBase {
     }
     
     @org.junit.Test
+<<<<<<< HEAD
     public void testSAML2UnsignedBearer() throws Exception {
 
         SpringBusFactory bf = new SpringBusFactory();
@@ -165,6 +167,33 @@ public class BearerTest extends AbstractBusClientServerTestBase {
         bus.shutdown(true);
     }
     
+    @org.junit.Test
+=======
+>>>>>>> a797797... Fixing tests following WSS4J upgrades + adding some SAML Subject Confirmation Method tests
+    public void testSAML2BearerNoBinding() throws Exception {
+
+        SpringBusFactory bf = new SpringBusFactory();
+        URL busFile = BearerTest.class.getResource("cxf-client.xml");
+
+        Bus bus = bf.createBus(busFile.toString());
+        SpringBusFactory.setDefaultBus(bus);
+        SpringBusFactory.setThreadDefaultBus(bus);
+
+        URL wsdl = BearerTest.class.getResource("DoubleIt.wsdl");
+        Service service = Service.create(wsdl, SERVICE_QNAME);
+        QName portQName = new QName(NAMESPACE, "DoubleItTransportSAML2BearerPort2");
+        DoubleItPortType transportSaml2Port = 
+            service.getPort(portQName, DoubleItPortType.class);
+        updateAddressPort(transportSaml2Port, PORT);
+        if (standalone) {
+            TokenTestUtils.updateSTSPort((BindingProvider)transportSaml2Port, STSPORT);
+        }
+        
+        doubleIt(transportSaml2Port, 45);
+        
+        ((java.io.Closeable)transportSaml2Port).close();
+        bus.shutdown(true);
+    }
     
     private static void doubleIt(DoubleItPortType port, int numToDouble) {
         int resp = port.doubleIt(numToDouble);
