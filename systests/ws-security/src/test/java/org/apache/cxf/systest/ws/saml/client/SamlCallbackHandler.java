@@ -47,7 +47,6 @@ public class SamlCallbackHandler implements CallbackHandler {
     private boolean saml2 = true;
     private String confirmationMethod = SAML2Constants.CONF_SENDER_VOUCHES;
     private CERT_IDENTIFIER keyInfoIdentifier = CERT_IDENTIFIER.X509_CERT;
-    private ConditionsBean conditions;
     private String cryptoAlias = "alice";
     private String cryptoPropertiesFile = 
         "org/apache/cxf/systest/ws/wssec10/client/alice.properties";
@@ -131,14 +130,6 @@ public class SamlCallbackHandler implements CallbackHandler {
         }
         
         return keyInfo;
-    }
-
-    public ConditionsBean getConditions() {
-        return conditions;
-    }
-
-    public void setConditions(ConditionsBean conditions) {
-        this.conditions = conditions;
     }
 
     public String getCryptoAlias() {
