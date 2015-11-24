@@ -26,6 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -75,6 +78,9 @@ public abstract class BusFactory {
     }
     
     protected static final Map<Thread, BusHolder> THREAD_BUSSES = new WeakHashMap<Thread, BusHolder>();
+    private static final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private static final Lock r = lock.readLock();
+    private static final Lock w = lock.writeLock();
     protected static final ThreadLocal<BusHolder> THREAD_BUS = new ThreadLocal<BusHolder>();
 
     private static final Logger LOG = LogUtils.getL7dLogger(BusFactory.class);
@@ -118,14 +124,20 @@ public abstract class BusFactory {
         BusHolder h = THREAD_BUS.get();
         if (h == null || h.stale) {
             Thread cur = Thread.currentThread();
-            synchronized (THREAD_BUSSES) {
+            r.lock();
+            try {
                 h = THREAD_BUSSES.get(cur);
+            } finally {
+                r.unlock();
             }
             if (h == null || h.stale) {
                 h = new BusHolder();
             
-                synchronized (THREAD_BUSSES) {
+                w.lock();
+                try {
                     THREAD_BUSSES.put(cur, h);
+                } finally {
+                    w.unlock();
                 }
             }
             if (set) {
@@ -161,8 +173,11 @@ public abstract class BusFactory {
             BusHolder h = THREAD_BUS.get();
             if (h == null) {
                 Thread cur = Thread.currentThread();
-                synchronized (THREAD_BUSSES) {
+                r.lock();
+                try {
                     h = THREAD_BUSSES.get(cur);
+                } finally {
+                    r.unlock();
                 }
             }
             if (h != null) {
@@ -187,8 +202,11 @@ public abstract class BusFactory {
             BusHolder b = THREAD_BUS.get();
             if (b == null) {
                 Thread cur = Thread.currentThread();
-                synchronized (THREAD_BUSSES) {
+                r.lock();
+                try {
                     b = THREAD_BUSSES.get(cur);
+                } finally {
+                    r.unlock();
                 }
             }
             if (b != null) {
@@ -232,8 +250,11 @@ public abstract class BusFactory {
         BusHolder h = THREAD_BUS.get();
         if (h == null || h.stale) {
             Thread cur = Thread.currentThread();
-            synchronized (THREAD_BUSSES) {
+            r.lock();
+            try {
                 h = THREAD_BUSSES.get(cur);
+            } finally {
+                r.unlock();
             }
         }
         return h == null || h.stale ? null : h.bus;
@@ -255,7 +276,8 @@ public abstract class BusFactory {
      * @param bus the bus to remove
      */
     public static void clearDefaultBusForAnyThread(final Bus bus) {
-        synchronized (THREAD_BUSSES) {
+        w.lock();
+        try {
             for (final Iterator<BusHolder> iterator = THREAD_BUSSES.values().iterator();
                 iterator.hasNext();) {
                 BusHolder itBus = iterator.next();
@@ -272,6 +294,8 @@ public abstract class BusFactory {
                     iterator.remove();
                 }
             }
+        } finally {
+            w.unlock();
         }
     }
 
