@@ -73,7 +73,8 @@ public class JwtAuthenticationFilter extends AbstractJoseJwtConsumer implements 
         
         // The token must be signed/verified with a public key to set up the security context, 
         // unless we directly configure otherwise
-        if (isVerifiedWithAPublicKey(jwt) || enableUnsignedJwt) {
+        if (jwt.getClaims().getSubject() != null 
+            && (isVerifiedWithAPublicKey(jwt) || enableUnsignedJwt)) {
             return new JwtTokenSecurityContext(jwt, roleClaim);
         }
         return null;
@@ -96,15 +97,7 @@ public class JwtAuthenticationFilter extends AbstractJoseJwtConsumer implements 
     
     @Override
     protected void validateToken(JwtToken jwt) {
-        // If we have no issued time then we need to have an expiry
-        boolean expiredRequired = jwt.getClaims().getIssuedAt() == null;
-        JwtUtils.validateJwtExpiry(jwt.getClaims(), clockOffset, expiredRequired);
-        
-        JwtUtils.validateJwtNotBefore(jwt.getClaims(), clockOffset, false);
-        
-        // If we have no expiry then we must have an issued at
-        boolean issuedAtRequired = jwt.getClaims().getExpiryTime() == null;
-        JwtUtils.validateJwtIssuedAt(jwt.getClaims(), ttl, clockOffset, issuedAtRequired);
+        JwtUtils.validateTokenClaims(jwt.getClaims(), ttl, clockOffset, true);
     }
 
     public int getClockOffset() {

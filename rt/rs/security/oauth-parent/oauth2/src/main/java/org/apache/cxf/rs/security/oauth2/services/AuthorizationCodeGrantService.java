@@ -53,7 +53,7 @@ import org.apache.cxf.rs.security.oauth2.utils.OAuthConstants;
  */
 @Path("/authorize")
 public class AuthorizationCodeGrantService extends RedirectionBasedGrantService {
-    private static final Integer RECOMMENDED_CODE_EXPIRY_TIME_MINS = 10;
+    private static final long RECOMMENDED_CODE_EXPIRY_TIME_SECS = 10L * 60L;
     private boolean canSupportPublicClients;
     private boolean canSupportEmptyRedirectForPrivateClients;
     private OOBResponseDeliverer oobDeliverer;
@@ -68,10 +68,12 @@ public class AuthorizationCodeGrantService extends RedirectionBasedGrantService 
                                                              MultivaluedMap<String, String> params,
                                                              String redirectUri,
                                                              UserSubject subject,
+                                                             List<String> requestedScopes,
                                                              List<OAuthPermission> perms,
                                                              boolean authorizationCanBeSkipped) {
         OAuthAuthorizationData data = 
-            super.createAuthorizationData(client, params, redirectUri, subject, perms, authorizationCanBeSkipped);
+            super.createAuthorizationData(client, params, redirectUri, subject, 
+                                          requestedScopes, perms, authorizationCanBeSkipped);
         setCodeQualifier(data, params);
         return data;
     }
@@ -105,7 +107,7 @@ public class AuthorizationCodeGrantService extends RedirectionBasedGrantService 
         codeReg.setClient(client);
         codeReg.setRedirectUri(state.getRedirectUri());
         codeReg.setRequestedScope(requestedScope);
-        if (approvedScope != null && approvedScope.isEmpty()) {
+        if (approvedScope == null || approvedScope.isEmpty()) {
             // no down-scoping done by a user, all of the requested scopes have been authorized
             codeReg.setApprovedScope(requestedScope);
         } else {
@@ -122,7 +124,7 @@ public class AuthorizationCodeGrantService extends RedirectionBasedGrantService 
         } catch (OAuthServiceException ex) {
             return createErrorResponse(state.getState(), state.getRedirectUri(), OAuthConstants.ACCESS_DENIED);
         }
-        if (grant.getExpiresIn() / 60 > RECOMMENDED_CODE_EXPIRY_TIME_MINS) {
+        if (grant.getExpiresIn() > RECOMMENDED_CODE_EXPIRY_TIME_SECS) {
             LOG.warning("Code expiry time exceeds 10 minutes");
         }
         String grantCode = processCodeGrant(client, grant.getCode(), grant.getSubject());

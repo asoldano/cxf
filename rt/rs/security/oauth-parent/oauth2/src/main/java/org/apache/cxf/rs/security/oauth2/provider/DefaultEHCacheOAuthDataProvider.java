@@ -41,8 +41,7 @@ import org.apache.cxf.rs.security.oauth2.common.ServerAccessToken;
 import org.apache.cxf.rs.security.oauth2.tokens.refresh.RefreshToken;
 import org.apache.cxf.rs.security.oauth2.utils.EHCacheUtil;
 
-public class DefaultEHCacheOAuthDataProvider extends AbstractOAuthDataProvider 
-    implements ClientRegistrationProvider {
+public class DefaultEHCacheOAuthDataProvider extends AbstractOAuthDataProvider {
     public static final String CLIENT_CACHE_KEY = "cxf.oauth2.client.cache";
     public static final String ACCESS_TOKEN_CACHE_KEY = "cxf.oauth2.accesstoken.cache";
     public static final String REFRESH_TOKEN_CACHE_KEY = "cxf.oauth2.refreshtoken.cache";
@@ -54,7 +53,7 @@ public class DefaultEHCacheOAuthDataProvider extends AbstractOAuthDataProvider
     private Ehcache refreshTokenCache;
     
     public DefaultEHCacheOAuthDataProvider() {
-        this(DEFAULT_CONFIG_URL, null);
+        this(DEFAULT_CONFIG_URL, BusFactory.getThreadDefaultBus(true));
     }
     
     public DefaultEHCacheOAuthDataProvider(String configFileURL, Bus bus) {
@@ -102,17 +101,20 @@ public class DefaultEHCacheOAuthDataProvider extends AbstractOAuthDataProvider
         return getCacheValue(accessTokenCache, accessToken, ServerAccessToken.class);
     }
 
-    @Override
-    public void removeAccessToken(ServerAccessToken accessToken) throws OAuthServiceException {
-        revokeAccessToken(accessToken.getTokenKey());
+    protected ServerAccessToken revokeAccessToken(String accessTokenKey) {
+        ServerAccessToken at = getAccessToken(accessTokenKey);
+        if (at != null) {
+            accessTokenCache.remove(accessTokenKey);
+        }
+        return at;
     }
-
-    protected boolean revokeAccessToken(String accessTokenKey) {
-        return accessTokenCache.remove(accessTokenKey);
+    
+    protected RefreshToken getRefreshToken(Client client, String refreshTokenKey) { 
+        return getCacheValue(refreshTokenCache, refreshTokenKey, RefreshToken.class);
     }
     
     protected RefreshToken revokeRefreshToken(Client client, String refreshTokenKey) { 
-        RefreshToken refreshToken = getCacheValue(refreshTokenCache, refreshTokenKey, RefreshToken.class);
+        RefreshToken refreshToken = getRefreshToken(client, refreshTokenKey);
         if (refreshToken != null) {
             refreshTokenCache.remove(refreshTokenKey);
         }
@@ -193,5 +195,9 @@ public class DefaultEHCacheOAuthDataProvider extends AbstractOAuthDataProvider
         refreshTokenCache = createCache(cacheManager, refreshTokenKey);
     }
 
-    
+    @Override
+    public void close() {
+        cacheManager.shutdown();
+    }
+
 }

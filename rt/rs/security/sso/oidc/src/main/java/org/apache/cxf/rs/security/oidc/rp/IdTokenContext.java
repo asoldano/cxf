@@ -16,34 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.cxf.rs.security.jose.jwk;
+package org.apache.cxf.rs.security.oidc.rp;
 
-import org.apache.cxf.jaxrs.json.basic.JsonMapObjectReaderWriter;
+import org.apache.cxf.rs.security.oidc.common.IdToken;
 
-
-
-
-
-public class DefaultJwkReaderWriter extends JsonMapObjectReaderWriter
-    implements JwkReaderWriter {
-    @Override
-    public String jwkSetToJson(JsonWebKeys jwks) {
-        return toJson(jwks);
-    }
-    @Override
-    public JsonWebKeys jsonToJwkSet(String jwksJson) {
-        JsonWebKeys jwks = new JsonWebKeys();
-        fromJson(jwks, jwksJson);
-        return jwks;
-    }
-    @Override
-    public String jwkToJson(JsonWebKey jwk) {
-        return toJson(jwk);
-    }
-    @Override
-    public JsonWebKey jsonToJwk(String jwkJson) {
-        JsonWebKey jwk = new JsonWebKey();
-        fromJson(jwk, jwkJson);
-        return jwk;
-    }
+public interface IdTokenContext {
+    IdToken getIdToken();
 }

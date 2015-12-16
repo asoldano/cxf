@@ -30,13 +30,13 @@ import org.apache.cxf.rs.security.oauth2.common.OAuthContext;
 import org.apache.cxf.rs.security.oauth2.provider.AbstractOAuthServerJoseJwtProducer;
 import org.apache.cxf.rs.security.oauth2.provider.OAuthDataProvider;
 import org.apache.cxf.rs.security.oauth2.utils.OAuthContextUtils;
+import org.apache.cxf.rs.security.oidc.common.IdToken;
 import org.apache.cxf.rs.security.oidc.common.UserInfo;
 
 @Path("/userinfo")
 public class UserInfoService extends AbstractOAuthServerJoseJwtProducer {
     private UserInfoProvider userInfoProvider;
     private OAuthDataProvider oauthDataProvider;
-    private String issuer;
     
     @Context
     private MessageContext mc;
@@ -44,13 +44,25 @@ public class UserInfoService extends AbstractOAuthServerJoseJwtProducer {
     @Produces({"application/json", "application/jwt" })
     public Response getUserInfo() {
         OAuthContext oauth = OAuthContextUtils.getContext(mc);
-        UserInfo userInfo = 
-            userInfoProvider.getUserInfo(oauth.getClientId(), oauth.getSubject(), oauth.getPermissions());
-        if (userInfo != null) {
-            userInfo.setIssuer(issuer);
+        UserInfo userInfo = null;
+        if (userInfoProvider != null) {
+            userInfo = userInfoProvider.getUserInfo(oauth.getClientId(), 
+                                         oauth.getSubject(), 
+                                         oauth.getPermissions());
+        } else if (oauth.getSubject() instanceof OidcUserSubject) {
+            OidcUserSubject oidcUserSubject = (OidcUserSubject)oauth.getSubject();
+            userInfo = oidcUserSubject.getUserInfo();
+            if (userInfo == null) {
+                userInfo = createFromIdToken(oidcUserSubject.getIdToken());
+            }
         }
-        userInfo.setAudience(oauth.getClientId());
+        if (userInfo == null) {
+            // Consider customizing the error code in case of UserInfo being not available
+            return Response.serverError().build();
+        }
+        
         Object responseEntity = userInfo;
+        // UserInfo may be returned in a clear form as JSON
         if (super.isJwsRequired() || super.isJweRequired()) {
             responseEntity = super.processJwt(new JwtToken(userInfo),
                                               oauthDataProvider.getClient(oauth.getClientId()));
@@ -59,9 +71,30 @@ public class UserInfoService extends AbstractOAuthServerJoseJwtProducer {
         
     }
     
-    public void setIssuer(String issuer) {
-        this.issuer = issuer;
+    protected UserInfo createFromIdToken(IdToken idToken) {
+        UserInfo userInfo = new UserInfo();
+        userInfo.setSubject(idToken.getSubject());
+        
+        if (super.isJwsRequired()) {
+            userInfo.setIssuer(idToken.getIssuer());
+            userInfo.setAudience(idToken.getAudience());
+        }
+        if (idToken.getName() != null) {
+            userInfo.setName(idToken.getName());
+        }
+        if (idToken.getGivenName() != null) {
+            userInfo.setGivenName(idToken.getGivenName());
+        }
+        if (idToken.getFamilyName() != null) {
+            userInfo.setFamilyName(idToken.getFamilyName());
+        }
+        if (idToken.getEmail() != null) {
+            userInfo.setEmail(idToken.getEmail());
+        }
+        //etc
+        return userInfo;
     }
+
     public void setUserInfoProvider(UserInfoProvider userInfoProvider) {
         this.userInfoProvider = userInfoProvider;
     }

@@ -26,8 +26,12 @@ import java.util.Map;
 
 import org.apache.cxf.common.util.Base64UrlUtility;
 import org.apache.cxf.common.util.StringUtils;
+import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
+import org.apache.cxf.rs.security.jose.jws.JwsException;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.rs.security.oauth2.common.ClientAccessToken;
+import org.apache.cxf.rs.security.oauth2.provider.OAuthServiceException;
+import org.apache.cxf.rs.security.oidc.common.IdToken;
 import org.apache.cxf.rs.security.oidc.common.UserInfo;
 import org.apache.cxf.rt.security.crypto.MessageDigestUtils;
 
@@ -94,8 +98,8 @@ public final class OidcUtils {
     public static void validateAccessTokenHash(ClientAccessToken at, JwtToken jwt, boolean required) {
         if (required) {
             validateHash(at.getTokenKey(),
-                         (String)jwt.getClaims().getClaim("at_hash"),
-                         jwt.getJwsHeaders().getAlgorithm());
+                         (String)jwt.getClaims().getClaim(IdToken.ACCESS_TOKEN_HASH_CLAIM),
+                         jwt.getJwsHeaders().getSignatureAlgorithm());
         }
     }
     public static void validateCodeHash(String code, JwtToken jwt) {
@@ -104,27 +108,36 @@ public final class OidcUtils {
     public static void validateCodeHash(String code, JwtToken jwt, boolean required) {
         if (required) {
             validateHash(code,
-                         (String)jwt.getClaims().getClaim("c_hash"),
-                         jwt.getJwsHeaders().getAlgorithm());
+                         (String)jwt.getClaims().getClaim(IdToken.AUTH_CODE_HASH_CLAIM),
+                         jwt.getJwsHeaders().getSignatureAlgorithm());
         }
     }
-    private static void validateHash(String value, String theHash, String joseAlgo) {
+    private static void validateHash(String value, String theHash, SignatureAlgorithm joseAlgo) {
         String hash = calculateHash(value, joseAlgo);
         if (!hash.equals(theHash)) {
-            throw new SecurityException("Invalid hash");
+            throw new OAuthServiceException("Invalid hash");
         }
     }
-    public static String calculateHash(String value, String joseAlgo) {
-        //TODO: map from the JOSE alg to a signature alg, 
-        // for example, RS256 -> SHA-256 
-        // and calculate the chunk size based on the algo key size
-        // for example SHA-256 -> 256/8 = 32 and 32/2 = 16 bytes
+    public static String calculateAccessTokenHash(String value, SignatureAlgorithm sigAlgo) {
+        return calculateHash(value, sigAlgo);
+    }
+    public static String calculateAuthorizationCodeHash(String value, SignatureAlgorithm sigAlgo) {
+        return calculateHash(value, sigAlgo);
+    }
+    private static String calculateHash(String value, SignatureAlgorithm sigAlgo) {
+        if (sigAlgo == SignatureAlgorithm.NONE) {
+            throw new JwsException(JwsException.Error.INVALID_ALGORITHM);
+        }
+        String algoShaSizeString = sigAlgo.getJwaName().substring(2);
+        String javaShaAlgo = "SHA-" + algoShaSizeString;
+        int algoShaSize = Integer.valueOf(algoShaSizeString);
+        int valueHashSize = (algoShaSize / 8) / 2;
         try {
             byte[] atBytes = StringUtils.toBytesASCII(value);
-            byte[] digest = MessageDigestUtils.createDigest(atBytes,  MessageDigestUtils.ALGO_SHA_256);
-            return Base64UrlUtility.encodeChunk(digest, 0, 16);
+            byte[] digest = MessageDigestUtils.createDigest(atBytes,  javaShaAlgo);
+            return Base64UrlUtility.encodeChunk(digest, 0, valueHashSize);
         } catch (NoSuchAlgorithmException ex) {
-            throw new SecurityException(ex);
+            throw new OAuthServiceException(ex);
         }
     }
     

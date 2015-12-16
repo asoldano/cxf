@@ -62,6 +62,7 @@ public class SamlOAuthValidator {
     }
     
     public void validate(Message message, SamlAssertionWrapper wrapper) {
+        validateSAMLVersion(wrapper);
         
         Conditions cs = wrapper.getSaml2().getConditions();
         validateAudience(message, cs);
@@ -75,6 +76,12 @@ public class SamlOAuthValidator {
             }
         }
         if (!validateAuthenticationSubject(message, cs, wrapper.getSaml2().getSubject())) {
+            throw ExceptionUtils.toNotAuthorizedException(null, null);
+        }
+    }
+    
+    private void validateSAMLVersion(SamlAssertionWrapper assertionW) {
+        if (assertionW.getSaml2() == null) {
             throw ExceptionUtils.toNotAuthorizedException(null, null);
         }
     }
@@ -117,17 +124,18 @@ public class SamlOAuthValidator {
     private boolean validateAuthenticationSubject(Message m, 
                                                   Conditions cs,
                                                   org.opensaml.saml.saml2.core.Subject subject) {
-        if (subject.getSubjectConfirmations() == null) {
-            return false;
-        }
         // We need to find a Bearer Subject Confirmation method
-        for (SubjectConfirmation subjectConf : subject.getSubjectConfirmations()) {
-            if (SAML2Constants.CONF_BEARER.equals(subjectConf.getMethod())) {
-                validateSubjectConfirmation(m, cs, subjectConf.getSubjectConfirmationData());
+        boolean bearerSubjectConfFound = false;
+        if (subject.getSubjectConfirmations() != null) {
+            for (SubjectConfirmation subjectConf : subject.getSubjectConfirmations()) {
+                if (SAML2Constants.CONF_BEARER.equals(subjectConf.getMethod())) {
+                    validateSubjectConfirmation(m, cs, subjectConf.getSubjectConfirmationData());
+                    bearerSubjectConfFound = true;
+                }
             }
         }
           
-        return true;
+        return bearerSubjectConfFound;
     }
       
       /**

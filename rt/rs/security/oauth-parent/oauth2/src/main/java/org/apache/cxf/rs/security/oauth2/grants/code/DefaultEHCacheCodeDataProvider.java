@@ -21,6 +21,7 @@ package org.apache.cxf.rs.security.oauth2.grants.code;
 import net.sf.ehcache.Ehcache;
 
 import org.apache.cxf.Bus;
+import org.apache.cxf.BusFactory;
 import org.apache.cxf.rs.security.oauth2.provider.DefaultEHCacheOAuthDataProvider;
 import org.apache.cxf.rs.security.oauth2.provider.OAuthServiceException;
 
@@ -28,11 +29,11 @@ public class DefaultEHCacheCodeDataProvider extends DefaultEHCacheOAuthDataProvi
     implements AuthorizationCodeDataProvider {
     public static final String CODE_GRANT_CACHE_KEY = "cxf.oauth2.codegrant.cache";
     
-    private long codeLifetime = 3600L;
+    private long codeLifetime = 10 * 60;
     private Ehcache codeGrantCache;
     
     protected DefaultEHCacheCodeDataProvider() {
-        this(DEFAULT_CONFIG_URL, null);
+        this(DEFAULT_CONFIG_URL, BusFactory.getThreadDefaultBus(true));
     }
     
     protected DefaultEHCacheCodeDataProvider(String configFileURL, Bus bus) {
@@ -53,9 +54,14 @@ public class DefaultEHCacheCodeDataProvider extends DefaultEHCacheOAuthDataProvi
     @Override
     public ServerAuthorizationCodeGrant createCodeGrant(AuthorizationCodeRegistration reg)
         throws OAuthServiceException {
-        ServerAuthorizationCodeGrant grant = AbstractCodeDataProvider.initCodeGrant(reg, codeLifetime);
+        ServerAuthorizationCodeGrant grant = doCreateCodeGrant(reg);
         saveCodeGrant(grant);
         return grant;
+    }
+    
+    protected ServerAuthorizationCodeGrant doCreateCodeGrant(AuthorizationCodeRegistration reg)
+        throws OAuthServiceException {
+        return AbstractCodeDataProvider.initCodeGrant(reg, codeLifetime);
     }
 
     @Override
@@ -72,7 +78,7 @@ public class DefaultEHCacheCodeDataProvider extends DefaultEHCacheOAuthDataProvi
     protected void saveCodeGrant(ServerAuthorizationCodeGrant grant) { 
         putCacheValue(codeGrantCache, grant.getCode(), grant, grant.getExpiresIn());
     }
-    
+
     public void setCodeLifetime(long codeLifetime) {
         this.codeLifetime = codeLifetime;
     }

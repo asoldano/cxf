@@ -16,25 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.cxf.rs.security.oauth2.client;
 
-import java.util.HashSet;
-import java.util.Set;
+package org.apache.cxf.systest.clustering;
 
-public class Consumers {
+import javax.jws.WebService;
+
+import org.apache.cxf.greeter_control.AbstractGreeterImpl;
+
+@WebService(serviceName = "GreeterService",
+            portName = "ReplicatedPortE",
+            endpointInterface = "org.apache.cxf.greeter_control.Greeter",
+            targetNamespace = "http://cxf.apache.org/greeter_control",
+            wsdlLocation = "testutils/greeter_control.wsdl")
+public class GreeterImplE extends AbstractGreeterImpl {
+
+    private String address;
     
-    private Set<Consumer> consumers = new HashSet<Consumer>();
-    public Consumers() {
-        
+    GreeterImplE() {
+        address = FailoverTest.REPLICA_E;    
     }
-    public Consumers(Consumers consumers) {
-        this(consumers.getConsumers());
-    }
-    public Consumers(Set<Consumer> consumers) {
-        this.consumers = consumers;
-    }
-
-    public Set<Consumer> getConsumers() {
-        return consumers;
+    
+    public String greetMe(String s) {
+        return super.greetMe(s)
+               + " from: " + address;
     }
 }

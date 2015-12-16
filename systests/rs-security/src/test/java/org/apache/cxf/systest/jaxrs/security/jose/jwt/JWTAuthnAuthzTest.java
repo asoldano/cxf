@@ -22,6 +22,7 @@ package org.apache.cxf.systest.jaxrs.security.jose.jwt;
 import java.net.URL;
 import java.security.Security;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -39,6 +40,7 @@ import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.cxf.systest.jaxrs.security.Book;
 import org.apache.cxf.testutil.common.AbstractBusClientServerTestBase;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -84,6 +86,7 @@ public class JWTAuthnAuthzTest extends AbstractBusClientServerTestBase {
         claims.setSubject("alice");
         claims.setIssuer("DoubleItSTSIssuer");
         claims.setIssuedAt(new Date().getTime() / 1000L);
+        claims.setAudiences(toList(address));
         
         JwtToken token = new JwtToken(claims);
 
@@ -123,6 +126,7 @@ public class JWTAuthnAuthzTest extends AbstractBusClientServerTestBase {
         claims.setSubject("alice");
         claims.setIssuer("DoubleItSTSIssuer");
         claims.setIssuedAt(new Date().getTime() / 1000L);
+        claims.setAudiences(toList(address));
         
         JwtToken token = new JwtToken(claims);
 
@@ -160,6 +164,7 @@ public class JWTAuthnAuthzTest extends AbstractBusClientServerTestBase {
         claims.setSubject("alice");
         claims.setIssuer("DoubleItSTSIssuer");
         claims.setIssuedAt(new Date().getTime() / 1000L);
+        claims.setAudiences(toList(address));
         // The endpoint requires a role of "boss"
         claims.setProperty("role", "boss");
         
@@ -201,6 +206,7 @@ public class JWTAuthnAuthzTest extends AbstractBusClientServerTestBase {
         claims.setSubject("alice");
         claims.setIssuer("DoubleItSTSIssuer");
         claims.setIssuedAt(new Date().getTime() / 1000L);
+        claims.setAudiences(toList(address));
         
         JwtToken token = new JwtToken(claims);
 
@@ -237,6 +243,7 @@ public class JWTAuthnAuthzTest extends AbstractBusClientServerTestBase {
         claims.setIssuer("DoubleItSTSIssuer");
         claims.setIssuedAt(new Date().getTime() / 1000L);
         claims.setProperty("role", "manager");
+        claims.setAudiences(toList(address));
         
         JwtToken token = new JwtToken(claims);
 
@@ -253,4 +260,7 @@ public class JWTAuthnAuthzTest extends AbstractBusClientServerTestBase {
         assertNotEquals(response.getStatus(), 200);
     }
     
+    private List<String> toList(String address) {
+        return Collections.singletonList(address);
+    }
 }

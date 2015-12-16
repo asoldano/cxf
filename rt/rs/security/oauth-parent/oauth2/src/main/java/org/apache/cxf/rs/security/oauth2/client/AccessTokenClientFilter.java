@@ -25,11 +25,12 @@ import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientRequestFilter;
 import javax.ws.rs.core.HttpHeaders;
 
+import org.apache.cxf.rs.security.oauth2.common.ClientAccessToken;
 import org.apache.cxf.rs.security.oauth2.utils.OAuthConstants;
 
-public class BearerClientFilter extends AbstractAuthSupplier implements ClientRequestFilter {
+public class AccessTokenClientFilter extends AbstractAuthSupplier implements ClientRequestFilter {
 
-    public BearerClientFilter() {
+    public AccessTokenClientFilter() {
         super(OAuthConstants.BEARER_AUTHORIZATION_SCHEME);
     }
     
@@ -39,5 +40,14 @@ public class BearerClientFilter extends AbstractAuthSupplier implements ClientRe
                                               createAuthorizationHeader());
         
     }
-    
+    protected ClientAccessToken getClientAccessToken() {
+        ClientAccessToken at = super.getClientAccessToken();
+        if (at.getTokenKey() == null) {
+            ClientTokenContext ctx = StaticClientTokenContext.getClientTokenContext();
+            if (ctx != null) {
+                at = ctx.getToken();
+            }
+        }
+        return at;
+    }
 }

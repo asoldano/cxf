@@ -35,6 +35,7 @@ import org.apache.cxf.jaxrs.impl.MetadataMap;
 import org.apache.cxf.jaxrs.model.URITemplate;
 import org.apache.cxf.jaxrs.utils.JAXRSUtils;
 import org.apache.cxf.message.Message;
+import org.apache.cxf.rs.security.jose.common.JoseConstants;
 import org.apache.cxf.rs.security.jose.jwa.AlgorithmUtils;
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwa.SignatureAlgorithm;
@@ -129,6 +130,9 @@ public final class OAuthUtils {
     public static String convertPermissionsToScope(List<OAuthPermission> perms) {
         StringBuilder sb = new StringBuilder();
         for (OAuthPermission perm : perms) {
+            if (perm.isInvisibleToClient() || perm.getPermission() == null) {
+                continue;
+            }
             if (sb.length() > 0) {
                 sb.append(" ");
             }
@@ -179,12 +183,12 @@ public final class OAuthUtils {
     }
     
     public static long getIssuedAt() {
-        return System.currentTimeMillis() / 1000;
+        return System.currentTimeMillis() / 1000L;
     }
     
     public static boolean isExpired(Long issuedAt, Long lifetime) {
-        return lifetime != -1
-            && issuedAt + lifetime < System.currentTimeMillis() / 1000;
+        return lifetime != 0L
+            && issuedAt + lifetime < System.currentTimeMillis() / 1000L;
     }
     
     public static boolean validateAudience(String audience, List<String> audiences) {
@@ -255,8 +259,9 @@ public final class OAuthUtils {
         if (supportOptionalParams) {
             clientToken.setExpiresIn(serverToken.getExpiresIn());
             List<OAuthPermission> perms = serverToken.getScopes();
-            if (!perms.isEmpty()) {
-                clientToken.setApprovedScope(OAuthUtils.convertPermissionsToScope(perms));    
+            String scopeString = OAuthUtils.convertPermissionsToScope(perms);
+            if (!StringUtils.isEmpty(scopeString)) {
+                clientToken.setApprovedScope(scopeString);    
             }
             clientToken.setParameters(serverToken.getParameters());
         }
@@ -264,37 +269,51 @@ public final class OAuthUtils {
     }
 
     public static JwsSignatureProvider getClientSecretSignatureProvider(String clientSecret) {
-        return JwsUtils.getHmacSignatureProvider(clientSecret, getClientSecretSignatureAlgorithm());
+        Properties sigProps = JwsUtils.loadSignatureOutProperties(false);
+        return JwsUtils.getHmacSignatureProvider(clientSecret, 
+                                                 getClientSecretSignatureAlgorithm(sigProps));
     }
     public static JwsSignatureVerifier getClientSecretSignatureVerifier(String clientSecret) {
-        return JwsUtils.getHmacSignatureVerifier(clientSecret, getClientSecretSignatureAlgorithm());
+        Properties sigProps = JwsUtils.loadSignatureOutProperties(false);
+        return JwsUtils.getHmacSignatureVerifier(clientSecret, 
+                                                 getClientSecretSignatureAlgorithm(sigProps));
     }
     
     public static JweDecryptionProvider getClientSecretDecryptionProvider(String clientSecret) {
+        Properties props = JweUtils.loadEncryptionInProperties(false);
         byte[] key = StringUtils.toBytesUTF8(clientSecret);
-        return JweUtils.getDirectKeyJweDecryption(key, getClientSecretContentAlgorithm());
+        return JweUtils.getDirectKeyJweDecryption(key, getClientSecretContentAlgorithm(props));
     }
     
     public static JweEncryptionProvider getClientSecretEncryptionProvider(String clientSecret) {
+        Properties props = JweUtils.loadEncryptionInProperties(false);
         byte[] key = StringUtils.toBytesUTF8(clientSecret);
-        return JweUtils.getDirectKeyJweEncryption(key, getClientSecretContentAlgorithm());
+        return JweUtils.getDirectKeyJweEncryption(key, getClientSecretContentAlgorithm(props));
     }
     
-    private static ContentAlgorithm getClientSecretContentAlgorithm() {
-        Properties props = JweUtils.loadEncryptionInProperties(false);
-        ContentAlgorithm ctAlgo = ContentAlgorithm.getAlgorithm(
-            props.getProperty(OAuthConstants.CLIENT_SECRET_CONTENT_ENCRYPTION_ALGORITHM));
+    private static ContentAlgorithm getClientSecretContentAlgorithm(Properties props) {
+        String ctAlgoProp = props.getProperty(OAuthConstants.CLIENT_SECRET_CONTENT_ENCRYPTION_ALGORITHM);
+        if (ctAlgoProp == null) {
+            ctAlgoProp = props.getProperty(JoseConstants.RSSEC_ENCRYPTION_CONTENT_ALGORITHM);
+        }
+        ContentAlgorithm ctAlgo = ContentAlgorithm.getAlgorithm(ctAlgoProp);
         ctAlgo = ctAlgo != null ? ctAlgo : ContentAlgorithm.A128GCM;
         return ctAlgo;
     }
     
-    private static SignatureAlgorithm getClientSecretSignatureAlgorithm() {
-        Properties sigProps = JwsUtils.loadSignatureOutProperties(false);
-        SignatureAlgorithm sigAlgo = SignatureAlgorithm.getAlgorithm(
-        sigProps.getProperty(OAuthConstants.CLIENT_SECRET_SIGNATURE_ALGORITHM));
+    public static SignatureAlgorithm getClientSecretSignatureAlgorithm(Properties sigProps) {
+        
+        String clientSecretSigProp = sigProps.getProperty(OAuthConstants.CLIENT_SECRET_SIGNATURE_ALGORITHM);
+        if (clientSecretSigProp == null) {
+            String sigProp = sigProps.getProperty(JoseConstants.RSSEC_SIGNATURE_ALGORITHM);
+            if (AlgorithmUtils.isHmacSign(sigProp)) {
+                clientSecretSigProp = sigProp;
+            }
+        }
+        SignatureAlgorithm sigAlgo = SignatureAlgorithm.getAlgorithm(clientSecretSigProp);
         sigAlgo = sigAlgo != null ? sigAlgo : SignatureAlgorithm.HS256;
         if (!AlgorithmUtils.isHmacSign(sigAlgo)) {
-         // Must be HS-based for the symmetric signature
+            // Must be HS-based for the symmetric signature
             throw new OAuthServiceException(OAuthConstants.SERVER_ERROR);
         } else {
             return sigAlgo;

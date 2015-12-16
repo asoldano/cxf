@@ -25,8 +25,16 @@ import org.apache.cxf.jaxrs.JAXRSServiceFactoryBean;
 import org.apache.cxf.jaxrs.model.AbstractResourceInfo;
 
 public abstract class AbstractSwaggerFeature extends AbstractFeature {
+
+    private static final boolean SWAGGER_JAXRS_AVAILABLE;
+
+    static {
+        SWAGGER_JAXRS_AVAILABLE = isSwaggerJaxRsAvailable();
+    }
+
     protected boolean scan = true;
     protected boolean runAsFilter;
+    private boolean activateOnlyIfJaxrsSupported;
     private String resourcePackage;
     private String version = "1.0.0";
     // depending on swagger version basePath is set differently
@@ -39,13 +47,24 @@ public abstract class AbstractSwaggerFeature extends AbstractFeature {
     private String termsOfServiceUrl;
     private String filterClass;
     
+    private static boolean isSwaggerJaxRsAvailable() {
+        try {
+            Class.forName("io.swagger.jaxrs.DefaultParameterExtension");
+            return true;
+        } catch (Throwable ex) {
+            return false;
+        }    
+    }
+
     @Override
     public void initialize(Server server, Bus bus) {
-        calculateDefaultResourcePackage(server);
-        calculateDefaultBasePath(server);
-        addSwaggerResource(server);
-        
-        initializeProvider(server.getEndpoint(), bus);
+        if (!activateOnlyIfJaxrsSupported || SWAGGER_JAXRS_AVAILABLE) {
+            calculateDefaultResourcePackage(server);
+            calculateDefaultBasePath(server);
+            addSwaggerResource(server);
+
+            initializeProvider(server.getEndpoint(), bus);
+        }
     }
 
     protected abstract void addSwaggerResource(Server server);
@@ -143,4 +162,13 @@ public abstract class AbstractSwaggerFeature extends AbstractFeature {
     public void setRunAsFilter(boolean runAsFilter) {
         this.runAsFilter = runAsFilter;
     }
+
+    public boolean isActivateOnlyIfJaxrsSupported() {
+        return activateOnlyIfJaxrsSupported;
+    }
+
+    public void setActivateOnlyIfJaxrsSupported(boolean activateOnlyIfJaxrsSupported) {
+        this.activateOnlyIfJaxrsSupported = activateOnlyIfJaxrsSupported;
+    }
+    
 }

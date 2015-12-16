@@ -95,6 +95,9 @@ public final class KeyManagementUtils {
         return loadX509CertificateOrChain(keyStore, alias);
     }
     private static X509Certificate[] loadX509CertificateOrChain(KeyStore keyStore, String alias) {
+        if (alias == null) {
+            throw new JoseException("No alias supplied");
+        }
         try {
             Certificate[] certs = keyStore.getCertificateChain(alias);
             if (certs != null) {
@@ -236,11 +239,14 @@ public final class KeyManagementUtils {
                 LOG.warning("No keystore file has been configured");
                 throw new JoseException("No keystore file has been configured");
             }
-            keyStore = (KeyStore)m.getExchange().get(props.get(JoseConstants.RSSEC_KEY_STORE_FILE));
+            if (m != null) {
+                keyStore = (KeyStore)m.getExchange().get(props.get(JoseConstants.RSSEC_KEY_STORE_FILE));
+            }
         }
         
         if (keyStore == null) {
-            keyStore = loadKeyStore(props, m.getExchange().getBus());
+            Bus bus = m != null ? m.getExchange().getBus() : null;
+            keyStore = loadKeyStore(props, bus);
             if (m != null) {
                 m.getExchange().put((String)props.get(JoseConstants.RSSEC_KEY_STORE_FILE), keyStore);
             }
